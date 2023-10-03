@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> HTML Page</title>
+</head>
+<body>
+    <h1>Deepgram</h1>
+    <p></p>
+<script>
+    const DG_ENDPOINT = 'wss://api.deepgram.com/v1/listen?model=nova';
+
+    //const DG_ENDPOINT = 'ws://localhost:8080';
+    
+    
+    navigator.mediaDevices.getUserMedia({ audio:true}).then(stream => {
+        const mediaRecorder = new MediaRecorder(stream,{ mineType: 'audio/webm'})
+        
+        const socket = new WebSocket(DG_ENDPOINT, ['token', '6a1947e479bf654aa94b8c13424614645d3744b1'])
+        // const socket = new WebSocket(DG_ENDPOINT,{
+        //     headers: {
+        //     // Remember to replace the YOUR_DEEPGRAM_API_KEY placeholder with your Deepgram API Key
+        //    Authorization: 'Token 6a1947e479bf654aa94b8c13424614645d3744b1',
+        // },
+        // })
+
+        socket.onopen = () => {
+            mediaRecorder.addEventListener('dataavailable', event => {
+                socket.send(event.data)
+            })
+            mediaRecorder.start(250)
+        }
+
+        socket.onmessage = message => {
+            const data = JSON.parse(message.data)
+            console.log(data)
+            const is_final = data.is_final;
+            
+            
+            if(data.channel)
+            {
+                const transcript = data.channel.alternatives[0].transcript;
+                document.querySelector('p').textContent += ' '+transcript
+                
+                if(transcript)
+                {
+                    //document.querySelector('p').textContent += ' '+transcript
+                   // console.log(data.channel.alternatives[0].transcript)
+                }
+            }
+            
+        }//end onmessage
+
+        setInterval(() => {
+            const myJSON = '{"type": "KeepAlive"}';
+            const keepAlive  = JSON.parse(myJSON);
+          socket.send(JSON.stringify(['type', 'KeepAlive']));
+          console.log('KeepAlive'), keepAlive;
+        }, 1000);
+
+    })
+</script>
+</body>
+
+</html>

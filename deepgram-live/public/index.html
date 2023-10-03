@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> HTML Send video</title>
+</head>
+<body>
+    <button id="startStreaming">Start Streaming</button>
+    <button id="stopStreaming" disabled>Stop Streaming</button>
+  
+    <script>
+      const startStreamingBtn = document.getElementById('startStreaming');
+      const stopStreamingBtn = document.getElementById('stopStreaming');
+      let mediaRecorder;
+      let audioChunks = [];
+  
+      startStreamingBtn.addEventListener('click', () => {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0) {
+                audioChunks.push(event.data);
+              }
+            };
+            mediaRecorder.onstop = () => {
+              const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+              const formData = new FormData();
+              formData.append('audio', audioBlob);
+  
+              fetch('/stream', {
+                method: 'POST',
+                body: formData,
+              })
+                .then((response) => response.json())
+                .then((data) => {
+                  console.log(data);
+                  audioChunks = [];
+                  startStreamingBtn.disabled = false;
+                  stopStreamingBtn.disabled = true;
+                })
+                .catch((error) => {
+                  console.error('Error streaming audio:', error);
+                });
+            };
+            mediaRecorder.start();
+            startStreamingBtn.disabled = true;
+            stopStreamingBtn.disabled = false;
+  
+            // Stream audio every 5 seconds
+            setInterval(() => {
+              if (mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                mediaRecorder.start();
+              }
+            }, 5000);
+          })
+          .catch((error) => {
+            console.error('Error accessing microphone:', error);
+          });
+      });
+  
+      stopStreamingBtn.addEventListener('click', () => {
+        mediaRecorder.stop();
+        startStreamingBtn.disabled = false;
+        stopStreamingBtn.disabled = true;
+      });
+    </script>
+  </body>
+  </html>
